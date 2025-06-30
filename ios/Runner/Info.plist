@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSCalendarsUsageDescription</key>
+	<string>O aplicativo não utiliza o acesso ao calendário. Esta permissão é solicitada apenas por dependências de terceiros (permission_handler).</string>
+
+	<key>NSSiriUsageDescription</key>
+	<string>O aplicativo não utiliza integração com a Siri. Esta permissão é solicitada apenas por dependências de terceiros (permission_handler).</string>
+
+	<key>NSMotionUsageDescription</key>
+	<string>O aplicativo não utiliza sensores de movimento. Esta permissão é solicitada apenas por dependências de terceiros (permission_handler).</string>
+
+	<key>NSAppleMusicUsageDescription</key>
+	<string>O aplicativo não acessa a biblioteca de músicas. Esta permissão é solicitada apenas por dependências de terceiros (permission_handler).</string>
+
+
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Easy Raj</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>easy_raj</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+
+	<key>FDAllFilesDownloadedMessage</key>
+	<string>All files have been downloaded</string>
+
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Permitir o Easyapplication RAJ salvar fotos na sua biblioteca? Necessário para salvar suas imagens que serão carregadas em pedidos, visitas técnicas, etc.</string>
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Permitir o Easyapplication RAJ acessar fotos na sua biblioteca? Necessário para carregar imagens em pedidos, visitas técnias, etc.</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>Permitir o Easyapplication RAJ acessar sua camera? Necessário para tirar fotografias que serão carregadas em pedidos, visitas técnicas, etc.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Permitir o Easyapplication RAJ acessar sua localização sempre quando estiver usando o app? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
+
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Permitir o Easyapplication RAJ acessar sua localização sempre? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Permitir o Easyapplication RAJ acessar sua localização apenas quando estiver usando o app? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
+
+	<key>NSLocationUsageDescription</key>
+    <string>Permitir o Easyapplication RAJ acessar sua localização? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Este aplicativo usa o microfone para gravar áudio durante a captura de vídeo. Por exemplo, ao gravar uma mensagem de vídeo para para serem carregadas em pedidos.</string>
+
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>

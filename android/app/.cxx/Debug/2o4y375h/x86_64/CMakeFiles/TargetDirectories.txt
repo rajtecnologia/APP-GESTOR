@@ -1,0 +1,2 @@
+D:/App_Gestor/EASYAPPLICATION-RAJ/android/app/.cxx/Debug/2o4y375h/x86_64/CMakeFiles/edit_cache.dir
+D:/App_Gestor/EASYAPPLICATION-RAJ/android/app/.cxx/Debug/2o4y375h/x86_64/CMakeFiles/rebuild_cache.dir

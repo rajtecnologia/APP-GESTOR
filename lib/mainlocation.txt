@@ -1,0 +1,190 @@
+import 'dart:async'; // Para usar Timer
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:location/location.dart'; // Para obter a localização
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Solicitar permissões necessárias
+  await Permission.camera.request();
+  await Permission.microphone.request();
+  await Permission.location.request();
+  await Permission.locationAlways.request();
+  await Permission.locationWhenInUse.request();
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'TopMix',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const MyHomePage(title: 'TopMix'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  InAppWebViewController? _webViewController;
+
+  bool temInternet = true;
+  bool carregando = true;
+  Location location = Location();
+
+  // Função para obter a localização usando o pacote 'location'
+  Future<void> getLocation() async {
+    try {
+      // Verificar se o serviço de localização está ativado
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) {
+          print('Serviço de localização não está ativado');
+          return;
+        }
+      }
+
+      // Verificar a permissão de localização
+      PermissionStatus permission = await location.hasPermission();
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+        if (permission != PermissionStatus.granted) {
+          print('Permissão de localização não concedida');
+          return;
+        }
+      }
+
+      // Obter a localização atual
+      LocationData currentLocation = await location.getLocation();
+      print('Latitude: ${currentLocation.latitude}, Longitude: ${currentLocation.longitude}');
+
+      // Chame o método para enviar a localização
+      sendLocation(currentLocation.latitude!, currentLocation.longitude!);
+    } catch (e) {
+      print("Erro ao obter a localização: $e");
+    }
+  }
+
+  // Função fictícia para enviar a localização para seu backend ou outro método
+  void sendLocation(double latitude, double longitude) {
+    print("Enviando localização: Latitude = $latitude, Longitude = $longitude");
+    // Adicione o seu código para enviar a localização via API ou outro método aqui
+  }
+
+  @override
+  void didChangeDependencies() async {
+    try {
+      temInternet = await InternetConnection().hasInternetAccess;
+      setState(() {
+        carregando = false;
+      });
+
+      // Configurar o Timer para obter a localização a cada 40 segundos
+      Timer.periodic(Duration(seconds: 40), (Timer t) => getLocation());
+
+    } catch (e) {
+      setState(() {
+        carregando = false;
+      });
+    }
+
+    super.didChangeDependencies();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (carregando) {
+      return Scaffold(
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: const Row(
+            children: [
+              Spacer(),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Spacer(),
+                  CircularProgressIndicator(),
+                  Spacer(),
+                ],
+              ),
+              Spacer(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!temInternet) {
+      return Scaffold(
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: const Row(
+            children: [
+              Spacer(),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Spacer(),
+                  Text(
+                    'Ops! Erro ao carregar página:\n\nPor favor verifique sua internet.',
+                    textAlign: TextAlign.center,
+                  ),
+                  Spacer(),
+                ],
+              ),
+              Spacer(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: InAppWebView(
+          initialUrlRequest: URLRequest(
+            url: WebUri.uri(
+              Uri(
+                  path:
+                      'rajsolucoes.com.br/easyapplication/topmixerp/manutencao/login_instalacao.php'),
+            ),
+          ),
+          initialSettings: InAppWebViewSettings(
+            mediaPlaybackRequiresUserGesture: false,
+          ),
+          onWebViewCreated: (InAppWebViewController controller) {
+            _webViewController = controller;
+          },
+          onPermissionRequest: (inAppController, permissionRequest) async {
+            return PermissionResponse(action: PermissionResponseAction.GRANT);
+          },
+        ),
+      ),
+    );
+  }
+}
