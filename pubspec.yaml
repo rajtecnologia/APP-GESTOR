@@ -56,10 +56,10 @@ dependencies:
   # flutter_store_listing: ^1.0.0
 
 
-
+#deixa do ios com false
 flutter_icons:
   android: true
-  ios: true
+  ios: false
   image_path: "assets/icon/icon.png"
 
 dev_dependencies:
