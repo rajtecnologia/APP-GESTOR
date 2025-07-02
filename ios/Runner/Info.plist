@@ -49,6 +49,12 @@
 		<true/>
 	</dict>
 
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Este app pode acessar sua localização se um site solicitar isso através do WebView.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Este app pode acessar sua localização em segundo plano se solicitado por uma página web no WebView.</string>
+
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Permitir o App Gestor salvar fotos na sua biblioteca? Necessário para salvar imagens que serão carregadas em formulários de pesquisa ou suporte</string>
 
