@@ -374,8 +374,9 @@ class _MyHomePageState extends State<MyHomePage> {
           carregando = false;
         });
       }
-
-      verificarVersao();
+      if (Platform.isAndroid) {
+        verificarVersao();
+      }
     } catch (e) {
       print('Erro em didChangeDependencies: $e');
       if (mounted) {
