@@ -15,7 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart' as per;
-import 'package:location/location.dart';
+//import 'package:location/location.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
@@ -137,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
   InAppWebViewController? _webViewController;
   bool temInternet = true;
   bool carregando = true;
-  Location location = Location();
+  //Location location = Location();
   int usuarioLogado = 0;
   String clienteConexao = "";
   String codigo_usuario = "";
@@ -216,6 +216,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> getLocation() async {
+    /*
     try {
       bool serviceEnabled = await location.serviceEnabled();
       if (!serviceEnabled) {
@@ -240,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     } catch (e) {
       print("Erro ao obter a localização: $e");
-    }
+    }*/
   }
 
   Future<bool> enviaRastreioRomaneio(
