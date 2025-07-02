@@ -92,42 +92,12 @@ class _SplashScreenState extends State<SplashScreen> {
         );
       }
     } else {
+
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Permissões Necessárias'),
-              content: const Text(
-                  "O Easyapplication faz a coleta e transmite os dados da localização(geolocalização) do seu aparelho. Estes dados são armazenados em nosso sistema para extração de relatórios pelo seu gestor."),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _requestPermissions();
-                  },
-                  child: Text('Concordar'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Adiciona tratamento para quando o usuário clica em "Sair"
-                    Navigator.of(context).pop();
-                    // Ainda prossegue para homepage mas permissões podem ser limitadas
-                    if (mounted) {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                MyHomePage(title: "EasyApplication")),
-                      );
-                    }
-                  },
-                  child: Text('Sair'),
-                ),
-              ],
-            );
-          },
-        );
+
+        _requestPermissions();
+
+        
       }
     }
   }
@@ -141,15 +111,17 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(Duration(milliseconds: 100));
 
     await Permission.camera.request();
+    await Permission.videos.request();
     await Permission.microphone.request();
-    await Permission.location.request();
-    await Permission.locationAlways.request();
+    // await Permission.location.request();
+    // await Permission.locationAlways.request();
 
     Map<Permission, per.PermissionStatus> statuses = await [
       Permission.camera,
-      Permission.location,
-      Permission.locationAlways,
+      Permission.videos,
       Permission.microphone
+      // Permission.location,
+      // Permission.locationAlways,
     ].request();
 
     bool allGranted = statuses.values.every((status) => status.isGranted);
@@ -158,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-              builder: (context) => MyHomePage(title: "EasyApplication")),
+              builder: (context) => MyHomePage(title: "App Gestor")),
         );
       }
     } else {
@@ -173,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen> {
         // Mesmo sem todas as permissões, avançar para a tela principal
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-              builder: (context) => MyHomePage(title: "EasyApplication")),
+              builder: (context) => MyHomePage(title: "App Gestor")),
         );
       }
     }
@@ -589,25 +561,25 @@ class _MyHomePageState extends State<MyHomePage> {
                     action: PermissionResponseAction.GRANT);
               }
 
-              // if (request.resources
-              //         .contains(PermissionResourceType.MICROPHONE) &&
-              //     await Permission.microphone.isGranted) {
-              //   return PermissionResponse(
-              //       resources: [PermissionResourceType.MICROPHONE],
-              //       action: PermissionResponseAction.GRANT);
-              // }
+              if (request.resources
+                      .contains(PermissionResourceType.MICROPHONE) &&
+                  await Permission.microphone.isGranted) {
+                return PermissionResponse(
+                    resources: [PermissionResourceType.MICROPHONE],
+                    action: PermissionResponseAction.GRANT);
+              }
 
-              // if (request.resources
-              //         .contains(PermissionResourceType.GEOLOCATION) &&
-              //     await Permission.location.isGranted) {
-              //   return PermissionResponse(
-              //       resources: [PermissionResourceType.GEOLOCATION],
-              //       action: PermissionResponseAction.GRANT);
-              // }
+              if (request.resources
+                      .contains(PermissionResourceType.CAMERA_AND_MICROPHONE) &&
+                  await Permission.camera.isGranted) {
+                return PermissionResponse(
+                    resources: [PermissionResourceType.CAMERA_AND_MICROPHONE],
+                    action: PermissionResponseAction.GRANT);
+              }
 
               if (request.resources
                       .contains(PermissionResourceType.FILE_READ_WRITE) &&
-                  await Permission.location.isGranted) {
+                  await Permission.storage.isGranted) {
                 return PermissionResponse(
                     resources: [PermissionResourceType.FILE_READ_WRITE],
                     action: PermissionResponseAction.GRANT);
