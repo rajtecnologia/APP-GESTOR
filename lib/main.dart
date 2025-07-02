@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'EasyApplication ERP',
+      title: 'App Gestor ERP',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -47,7 +47,6 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-
   @override
   void initState() {
     super.initState();
@@ -61,65 +60,29 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _showPermissionDialog() async {
-    await Future.delayed(Duration(milliseconds: 100));
-
-    if (Platform.isIOS) {
-      Map<Permission, per.PermissionStatus> statuses = await [
-        Permission.locationWhenInUse,
-      ].request();
-    }
-
-    await Future.delayed(
-      Duration(milliseconds: 100),
-    );
-
-    Map<Permission, per.PermissionStatus> statuses = await [
-      Permission.camera,
-      Permission.storage,
-      // Permission.location,
-      // Permission.locationAlways,
-      Permission.microphone
-    ].request();
-
-    bool allGranted = statuses.values.every((status) => status.isGranted);
-
-    if (allGranted) {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => MyHomePage(title: "EasyApplication"),
-          ),
-        );
-      }
-    } else {
-
-      if (mounted) {
-
-        _requestPermissions();
-
-        
-      }
+    if (mounted) {
+      _requestPermissions();
     }
   }
 
   Future<void> _requestPermissions() async {
-    if (Platform.isIOS) {
-      Map<Permission, per.PermissionStatus> statuses = await [
-        Permission.locationWhenInUse,
-      ].request();
-    }
     await Future.delayed(Duration(milliseconds: 100));
 
     await Permission.camera.request();
+    await Future.delayed(Duration(milliseconds: 100));
     await Permission.videos.request();
+    await Future.delayed(Duration(milliseconds: 100));
     await Permission.microphone.request();
+    await Future.delayed(Duration(milliseconds: 100));
+    await Permission.storage.request();
     // await Permission.location.request();
     // await Permission.locationAlways.request();
 
     Map<Permission, per.PermissionStatus> statuses = await [
       Permission.camera,
       Permission.videos,
-      Permission.microphone
+      Permission.microphone,
+      Permission.storage,
       // Permission.location,
       // Permission.locationAlways,
     ].request();
@@ -171,8 +134,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  
-
   InAppWebViewController? _webViewController;
   bool temInternet = true;
   bool carregando = true;
@@ -193,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
           'https://play.google.com/store/apps/details?id=com.raj.raj_pdv_gestor&pli=1'));
 
       if (response.statusCode == 200) {
-        RegExp regex = RegExp(r'\[\[\["(\d+\.\d+\.\d+)"\]\]'); 
+        RegExp regex = RegExp(r'\[\[\["(\d+\.\d+\.\d+)"\]\]');
         Match? match = regex.firstMatch(response.body);
 
         if (match != null) {
@@ -223,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (context) => AlertDialog(
         title: Text('Atualização Necessária'),
         content: Text(
-            'Uma nova versão ($versaoLoja) do EasyApplication está disponível. Por favor, atualize para continuar usando.'),
+            'Uma nova versão ($versaoLoja) do App Gestor está disponível. Por favor, atualize para continuar usando.'),
         actions: [
           TextButton(
             child: Text('Atualizar Agora'),
@@ -387,7 +348,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       try {
-       // await Future.delayed(Duration(seconds: tempoRastreio));
+        // await Future.delayed(Duration(seconds: tempoRastreio));
       } catch (e) {
         print("Erro no delay: $e");
       }
@@ -399,7 +360,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.didChangeDependencies();
 
     try {
-     // await location.enableBackgroundMode(enable: true);
+      // await location.enableBackgroundMode(enable: true);
 
       try {
         temInternet = await InternetConnection().hasInternetAccess;
@@ -428,7 +389,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-   // startLocationUpdates();
+    // startLocationUpdates();
   }
 
   @override
@@ -500,9 +461,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   allow: true, origin: origin, retain: true);
             },
             initialUrlRequest: URLRequest(
-              url: WebUri.uri(
-                  Uri.tryParse('https://rajtecnologiaws.com.br//rajpdv/app_gestor/login.php?versaoApp=${Globais.versaoAtual}') ??
-                      Uri()),
+              url: WebUri.uri(Uri.tryParse(
+                      'https://rajtecnologiaws.com.br//rajpdv/app_gestor/login.php?versaoApp=${Globais.versaoAtual}') ??
+                  Uri()),
             ),
             onDownloadStartRequest: (controller, downloadStartRequest) async {
               final url = downloadStartRequest.url.toString();
@@ -548,91 +509,99 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             },
             initialSettings: InAppWebViewSettings(
-              mediaPlaybackRequiresUserGesture: false,            
+              mediaPlaybackRequiresUserGesture: false,
+              allowsInlineMediaPlayback: true,
+              allowsPictureInPictureMediaPlayback: true,
+              isFraudulentWebsiteWarningEnabled: false,
+              supportZoom: false,
+              builtInZoomControls: false,
+              displayZoomControls: false,
             ),
             onWebViewCreated: (InAppWebViewController controller) {
               _webViewController = controller;
             },
-      onPermissionRequest: (controller, request) async {
-  print('📱 Permissões solicitadas: ${request.resources}');
-  print('🌐 Origin: ${request.origin}');
-  
-  // Verificar status atual das permissões
-  bool cameraGranted = await Permission.camera.isGranted;
-  bool microphoneGranted = await Permission.microphone.isGranted;
-  bool storageGranted = await Permission.storage.isGranted;
-  
-  print('🎥 Camera: $cameraGranted');
-  print('🎤 Microphone: $microphoneGranted');
-  print('💾 Storage: $storageGranted');
-  
-  // Lista para recursos aprovados
-  List<PermissionResourceType> grantedResources = [];
-  
-  for (var resource in request.resources) {
-    if (resource == PermissionResourceType.CAMERA) {
-      if (cameraGranted) {
-        grantedResources.add(resource);
-        print('✅ CAMERA aprovada');
-      } else {
-        print('❌ CAMERA negada');
-      }
-    } else if (resource == PermissionResourceType.MICROPHONE) {
-      if (microphoneGranted) {
-        grantedResources.add(resource);
-        print('✅ MICROPHONE aprovada');
-      } else {
-        print('❌ MICROPHONE negada');
-      }
-    } else if (resource == PermissionResourceType.CAMERA_AND_MICROPHONE) {
-      // ✅ CORREÇÃO: Verificar AMBAS as permissões
-      if (cameraGranted && microphoneGranted) {
-        grantedResources.add(resource);
-        print('✅ CAMERA_AND_MICROPHONE aprovada');
-      } else {
-        print('❌ CAMERA_AND_MICROPHONE negada - Camera: $cameraGranted, Mic: $microphoneGranted');
-      }
-    } else if (resource == PermissionResourceType.FILE_READ_WRITE) {
-      if (storageGranted) {
-        grantedResources.add(resource);
-        print('✅ FILE_READ_WRITE aprovada');
-      } else {
-        print('❌ FILE_READ_WRITE negada');
-      }
-    } else {
-      print('⚠️ Recurso desconhecido: $resource');
-    }
-  }
-  
-  // Retornar resposta baseada nos recursos aprovados
-  if (grantedResources.length == request.resources.length) {
-    print('🎉 Todas as permissões concedidas: $grantedResources');
-    return PermissionResponse(
-      resources: grantedResources,
-      action: PermissionResponseAction.GRANT,
-    );
-  } else {
-    print('🚫 Algumas permissões negadas');
-    print('   Solicitadas: ${request.resources}');
-    print('   Aprovadas: $grantedResources');
-    return PermissionResponse(
-      action: PermissionResponseAction.DENY,
-    );
-  }
-},onConsoleMessage: (controller, consoleMessage) {
+            onPermissionRequest: (controller, request) async {
+              print('📱 Permissões solicitadas: ${request.resources}');
+              print('🌐 Origin: ${request.origin}');
+
+              // Verificar status atual das permissões
+              bool cameraGranted = await Permission.camera.isGranted;
+              bool microphoneGranted = await Permission.microphone.isGranted;
+              bool storageGranted = await Permission.storage.isGranted;
+
+              print('🎥 Camera: $cameraGranted');
+              print('🎤 Microphone: $microphoneGranted');
+              print('💾 Storage: $storageGranted');
+
+              // Lista para recursos aprovados
+              List<PermissionResourceType> grantedResources = [];
+
+              for (var resource in request.resources) {
+                if (resource == PermissionResourceType.CAMERA) {
+                  if (cameraGranted) {
+                    grantedResources.add(resource);
+                    print('✅ CAMERA aprovada');
+                  } else {
+                    print('❌ CAMERA negada');
+                  }
+                } else if (resource == PermissionResourceType.MICROPHONE) {
+                  if (microphoneGranted) {
+                    grantedResources.add(resource);
+                    print('✅ MICROPHONE aprovada');
+                  } else {
+                    print('❌ MICROPHONE negada');
+                  }
+                } else if (resource ==
+                    PermissionResourceType.CAMERA_AND_MICROPHONE) {
+                  // ✅ CORREÇÃO: Verificar AMBAS as permissões
+                  if (cameraGranted && microphoneGranted) {
+                    grantedResources.add(resource);
+                    print('✅ CAMERA_AND_MICROPHONE aprovada');
+                  } else {
+                    print(
+                        '❌ CAMERA_AND_MICROPHONE negada - Camera: $cameraGranted, Mic: $microphoneGranted');
+                  }
+                } else if (resource == PermissionResourceType.FILE_READ_WRITE) {
+                  if (storageGranted) {
+                    grantedResources.add(resource);
+                    print('✅ FILE_READ_WRITE aprovada');
+                  } else {
+                    print('❌ FILE_READ_WRITE negada');
+                  }
+                } else {
+                  print('⚠️ Recurso desconhecido: $resource');
+                }
+              }
+
+              // Retornar resposta baseada nos recursos aprovados
+              if (grantedResources.length == request.resources.length) {
+                print('🎉 Todas as permissões concedidas: $grantedResources');
+                return PermissionResponse(
+                  resources: grantedResources,
+                  action: PermissionResponseAction.GRANT,
+                );
+              } else {
+                print('🚫 Algumas permissões negadas');
+                print('   Solicitadas: ${request.resources}');
+                print('   Aprovadas: $grantedResources');
+                return PermissionResponse(
+                  action: PermissionResponseAction.PROMPT,
+                );
+              }
+            },
+            onConsoleMessage: (controller, consoleMessage) {
               if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
                 final message = consoleMessage.message;
 
                 try {
                   final data = jsonDecode(message);
-                    print("versaoApp: ${data['versaoApp']}");
+                  print("versaoApp: ${data['versaoApp']}");
 
                   if (data is Map<String, dynamic> && data['valido'] == 1) {
                     codigo_usuario = data['codigo_usuario'];
                     clienteConexao = data['clienteConexao'];
                     tempoRastreio = data['tempoRastreio'];
                     usuarioLogado = 1;
-
                   }
                 } catch (e) {
                   print("Mensagem de console não é um JSON válido: $message");

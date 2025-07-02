@@ -20,7 +20,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Easy Raj</string>
+	<string>Raj Pdv - Gestor App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -28,7 +28,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>easy_raj</string>
+	<string>raj_pdv_gestor</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -50,28 +50,16 @@
 	</dict>
 
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Permitir o Easyapplication RAJ salvar fotos na sua biblioteca? Necessário para salvar suas imagens que serão carregadas em pedidos, visitas técnicas, etc.</string>
+	<string>Permitir o App Gestor salvar fotos na sua biblioteca? Necessário para salvar imagens que serão carregadas em formulários de pesquisa ou suporte</string>
 
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Permitir o Easyapplication RAJ acessar fotos na sua biblioteca? Necessário para carregar imagens em pedidos, visitas técnias, etc.</string>
+    <string>Permitir o App Gestor acessar fotos na sua biblioteca? Necessário para carregar imagens que serão enviadas em formulários de pesquisa ou suporte</string>
 
 	<key>NSCameraUsageDescription</key>
-	<string>Permitir o Easyapplication RAJ acessar sua camera? Necessário para tirar fotografias que serão carregadas em pedidos, visitas técnicas, etc.</string>
-
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Permitir o Easyapplication RAJ acessar sua localização sempre quando estiver usando o app? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
-
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Permitir o Easyapplication RAJ acessar sua localização sempre? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
-
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Permitir o Easyapplication RAJ acessar sua localização apenas quando estiver usando o app? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
-
-	<key>NSLocationUsageDescription</key>
-    <string>Permitir o Easyapplication RAJ acessar sua localização? Necessário para confirmar sua localização em visitas técnicas, etc.</string>
+	<string>Permitir o App Gestor acessar sua camera? Necessário para tirar fotografias ou gravar vídeos que serão carregadas em formulários de pesquisa ou suporte</string>
 
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Este aplicativo usa o microfone para gravar áudio durante a captura de vídeo. Por exemplo, ao gravar uma mensagem de vídeo para para serem carregadas em pedidos.</string>
+	<string>Este aplicativo usa o microfone para gravar áudio durante a captura de vídeo. Por exemplo, ao gravar uma mensagem de vídeo para para serem carregadas em formulários de pesquisa ou suporte</string>
 
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
