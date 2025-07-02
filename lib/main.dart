@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Permission.storage,
       // Permission.location,
       // Permission.locationAlways,
-      // Permission.microphone
+      Permission.microphone
     ].request();
 
     bool allGranted = statuses.values.every((status) => status.isGranted);
@@ -553,41 +553,73 @@ class _MyHomePageState extends State<MyHomePage> {
             onWebViewCreated: (InAppWebViewController controller) {
               _webViewController = controller;
             },
-            onPermissionRequest: (controller, request) async {
-              if (request.resources.contains(PermissionResourceType.CAMERA) &&
-                  await Permission.camera.isGranted) {
-                return PermissionResponse(
-                    resources: [PermissionResourceType.CAMERA],
-                    action: PermissionResponseAction.GRANT);
-              }
-
-              if (request.resources
-                      .contains(PermissionResourceType.MICROPHONE) &&
-                  await Permission.microphone.isGranted) {
-                return PermissionResponse(
-                    resources: [PermissionResourceType.MICROPHONE],
-                    action: PermissionResponseAction.GRANT);
-              }
-
-              if (request.resources
-                      .contains(PermissionResourceType.CAMERA_AND_MICROPHONE) &&
-                  await Permission.camera.isGranted) {
-                return PermissionResponse(
-                    resources: [PermissionResourceType.CAMERA_AND_MICROPHONE],
-                    action: PermissionResponseAction.GRANT);
-              }
-
-              if (request.resources
-                      .contains(PermissionResourceType.FILE_READ_WRITE) &&
-                  await Permission.storage.isGranted) {
-                return PermissionResponse(
-                    resources: [PermissionResourceType.FILE_READ_WRITE],
-                    action: PermissionResponseAction.GRANT);
-              }
-
-              return PermissionResponse(action: PermissionResponseAction.DENY);
-            },
-            onConsoleMessage: (controller, consoleMessage) {
+      onPermissionRequest: (controller, request) async {
+  print('📱 Permissões solicitadas: ${request.resources}');
+  print('🌐 Origin: ${request.origin}');
+  
+  // Verificar status atual das permissões
+  bool cameraGranted = await Permission.camera.isGranted;
+  bool microphoneGranted = await Permission.microphone.isGranted;
+  bool storageGranted = await Permission.storage.isGranted;
+  
+  print('🎥 Camera: $cameraGranted');
+  print('🎤 Microphone: $microphoneGranted');
+  print('💾 Storage: $storageGranted');
+  
+  // Lista para recursos aprovados
+  List<PermissionResourceType> grantedResources = [];
+  
+  for (var resource in request.resources) {
+    if (resource == PermissionResourceType.CAMERA) {
+      if (cameraGranted) {
+        grantedResources.add(resource);
+        print('✅ CAMERA aprovada');
+      } else {
+        print('❌ CAMERA negada');
+      }
+    } else if (resource == PermissionResourceType.MICROPHONE) {
+      if (microphoneGranted) {
+        grantedResources.add(resource);
+        print('✅ MICROPHONE aprovada');
+      } else {
+        print('❌ MICROPHONE negada');
+      }
+    } else if (resource == PermissionResourceType.CAMERA_AND_MICROPHONE) {
+      // ✅ CORREÇÃO: Verificar AMBAS as permissões
+      if (cameraGranted && microphoneGranted) {
+        grantedResources.add(resource);
+        print('✅ CAMERA_AND_MICROPHONE aprovada');
+      } else {
+        print('❌ CAMERA_AND_MICROPHONE negada - Camera: $cameraGranted, Mic: $microphoneGranted');
+      }
+    } else if (resource == PermissionResourceType.FILE_READ_WRITE) {
+      if (storageGranted) {
+        grantedResources.add(resource);
+        print('✅ FILE_READ_WRITE aprovada');
+      } else {
+        print('❌ FILE_READ_WRITE negada');
+      }
+    } else {
+      print('⚠️ Recurso desconhecido: $resource');
+    }
+  }
+  
+  // Retornar resposta baseada nos recursos aprovados
+  if (grantedResources.length == request.resources.length) {
+    print('🎉 Todas as permissões concedidas: $grantedResources');
+    return PermissionResponse(
+      resources: grantedResources,
+      action: PermissionResponseAction.GRANT,
+    );
+  } else {
+    print('🚫 Algumas permissões negadas');
+    print('   Solicitadas: ${request.resources}');
+    print('   Aprovadas: $grantedResources');
+    return PermissionResponse(
+      action: PermissionResponseAction.DENY,
+    );
+  }
+},onConsoleMessage: (controller, consoleMessage) {
               if (consoleMessage.messageLevel == ConsoleMessageLevel.LOG) {
                 final message = consoleMessage.message;
 
