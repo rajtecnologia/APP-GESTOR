@@ -460,7 +460,10 @@ class _MyHomePageState extends State<MyHomePage> {
           body: InAppWebView(
             onGeolocationPermissionsShowPrompt: (controller, origin) async {
               return GeolocationPermissionShowPromptResponse(
-                  allow: true, origin: origin, retain: true);
+                allow: Platform.isIOS ? false : true,
+                origin: origin,
+                retain: true,
+              );
             },
             initialUrlRequest: URLRequest(
               url: WebUri.uri(Uri.tryParse(

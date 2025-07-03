@@ -21,7 +21,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 #version: 1.0.6+9
 
 #IOS VERSION
-version: 1.0.6+11
+version: 1.0.6+13
 
 environment:
   sdk: '>=3.4.1 <4.0.0'
@@ -54,6 +54,15 @@ dependencies:
   http: ^1.1.0
   package_info_plus: ^8.2.1 
   # flutter_store_listing: ^1.0.0
+  flutter_native_splash: ^2.2.16
+
+
+flutter_native_splash:
+  color: "#f7f7f7"
+  android: false
+  ios: true
+  web: false
+  image: assets/splash_image.png
 
 
 #deixa do ios com false
