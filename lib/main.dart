@@ -156,7 +156,7 @@ class _MyHomePageState extends State<MyHomePage> {
       try {
         parsedData = json.decode(data);
         phoneNumber = parsedData!['phone'] ?? data;
-        message = parsedData!['message'] ?? '';
+        message = parsedData['message'] ?? '';
       } catch (e) {
         // Se não for JSON, trata como número simples
         phoneNumber = data;
@@ -165,8 +165,75 @@ class _MyHomePageState extends State<MyHomePage> {
       // Remove caracteres não numéricos
       String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
 
-      // Constrói a URL do WhatsApp
-      String whatsappUrl = "https://wa.me/$cleanNumber";
+      print('🔗 Número limpo: $cleanNumber');
+
+      if (Platform.isIOS) {
+        // iOS: Tenta primeiro o app nativo
+        await _openWhatsAppIOS(cleanNumber, message);
+      } else {
+        // Android: Usa wa.me que funciona bem
+        await _openWhatsAppAndroid(cleanNumber, message);
+      }
+    } catch (e) {
+      print('❌ Erro ao abrir WhatsApp: $e');
+      _showSnackBar('Erro ao abrir WhatsApp: $e');
+    }
+  }
+
+  // Função específica para iOS
+  Future<void> _openWhatsAppIOS(String phoneNumber, String message) async {
+    try {
+      // URL do app nativo do WhatsApp no iOS
+      String nativeUrl = "whatsapp://send?phone=$phoneNumber";
+      if (message.isNotEmpty) {
+        nativeUrl += "&text=${Uri.encodeComponent(message)}";
+      }
+
+      print('🍎 Tentando app nativo iOS: $nativeUrl');
+
+      final Uri nativeUri = Uri.parse(nativeUrl);
+
+      // Tenta abrir o app nativo primeiro
+      if (await canLaunchUrl(nativeUri)) {
+        bool launched = await launchUrl(
+          nativeUri,
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (launched) {
+          print('✅ WhatsApp iOS nativo aberto com sucesso');
+          return;
+        }
+      }
+
+      // Fallback para WhatsApp Web se o app nativo falhar
+      print('⚠️ App nativo falhou, tentando WhatsApp Web...');
+      String webUrl = "https://wa.me/$phoneNumber";
+      if (message.isNotEmpty) {
+        webUrl += "?text=${Uri.encodeComponent(message)}";
+      }
+
+      final Uri webUri = Uri.parse(webUrl);
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(
+          webUri,
+          mode: LaunchMode.externalApplication,
+        );
+        print('✅ WhatsApp Web aberto como fallback');
+      } else {
+        _showSnackBar('WhatsApp não está instalado');
+      }
+    } catch (e) {
+      print('❌ Erro ao abrir WhatsApp no iOS: $e');
+      _showSnackBar('Erro ao abrir WhatsApp: $e');
+    }
+  }
+
+  // Função específica para Android
+  Future<void> _openWhatsAppAndroid(String phoneNumber, String message) async {
+    try {
+      // Para Android, wa.me funciona bem e abre o app automaticamente
+      String whatsappUrl = "https://wa.me/$phoneNumber";
       if (message.isNotEmpty) {
         whatsappUrl += "?text=${Uri.encodeComponent(message)}";
       }
