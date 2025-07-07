@@ -98,14 +98,12 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     } else {
       if (mounted) {
-        if (!Platform.isIOS) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Permissões necessárias não foram concedidas.')),
-          );
-        }
-
-        // Mesmo sem todas as permissões, avançar para a tela principal
+        // if (!Platform.isIOS) {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(
+        //         content: Text('Permissões necessárias não foram concedidas.')),
+        //   );
+        // }
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
               builder: (context) => MyHomePage(title: "App Gestor")),
@@ -144,6 +142,69 @@ class _MyHomePageState extends State<MyHomePage> {
   String codigo_cliente = "";
 
   late int tempoRastreio = 150;
+
+  // NOVA FUNÇÃO: Abrir WhatsApp
+  Future<void> _openWhatsApp(String data) async {
+    try {
+      print('📱 Tentando abrir WhatsApp com dados: $data');
+
+      // Tenta decodificar como JSON primeiro
+      Map<String, dynamic>? parsedData;
+      String phoneNumber = '';
+      String message = '';
+
+      try {
+        parsedData = json.decode(data);
+        phoneNumber = parsedData!['phone'] ?? data;
+        message = parsedData!['message'] ?? '';
+      } catch (e) {
+        // Se não for JSON, trata como número simples
+        phoneNumber = data;
+      }
+
+      // Remove caracteres não numéricos
+      String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+
+      // Constrói a URL do WhatsApp
+      String whatsappUrl = "https://wa.me/$cleanNumber";
+      if (message.isNotEmpty) {
+        whatsappUrl += "?text=${Uri.encodeComponent(message)}";
+      }
+
+      print('🔗 URL do WhatsApp: $whatsappUrl');
+
+      // Tenta abrir o WhatsApp
+      final Uri uri = Uri.parse(whatsappUrl);
+
+      if (await canLaunchUrl(uri)) {
+        bool launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (launched) {
+          print('✅ WhatsApp aberto com sucesso');
+        } else {
+          print('❌ Falha ao abrir WhatsApp');
+          _showSnackBar('Erro ao abrir WhatsApp');
+        }
+      } else {
+        print('❌ Não é possível abrir a URL: $whatsappUrl');
+        _showSnackBar('WhatsApp não está instalado');
+      }
+    } catch (e) {
+      print('❌ Erro ao abrir WhatsApp: $e');
+      _showSnackBar('Erro ao abrir WhatsApp: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
 
   Future<void> verificarVersao() async {
     try {
@@ -521,9 +582,39 @@ class _MyHomePageState extends State<MyHomePage> {
               supportZoom: false,
               builtInZoomControls: false,
               displayZoomControls: false,
+              javaScriptEnabled: true, // IMPORTANTE: Habilita JavaScript
             ),
             onWebViewCreated: (InAppWebViewController controller) {
               _webViewController = controller;
+
+              // NOVA FUNCIONALIDADE: Adiciona handler para WhatsApp
+              controller.addJavaScriptHandler(
+                  handlerName: 'whatsappHandler',
+                  callback: (args) {
+                    if (args.isNotEmpty) {
+                      _openWhatsApp(args[0].toString());
+                    }
+                  });
+
+              print('✅ JavaScript Handler para WhatsApp adicionado');
+            },
+            onLoadStop: (controller, url) async {
+              // Injeta JavaScript para criar a função global
+              await controller.evaluateJavascript(source: '''
+                window.openWhatsApp = function(phoneNumber, message) {
+                  console.log('📱 openWhatsApp chamado:', phoneNumber, message);
+                  
+                  var data = {
+                    phone: phoneNumber,
+                    message: message || ''
+                  };
+                  
+                  // Chama o handler do Flutter
+                  window.flutter_inappwebview.callHandler('whatsappHandler', JSON.stringify(data));
+                };
+                
+                console.log('✅ Função openWhatsApp injetada no JavaScript');
+              ''');
             },
             onPermissionRequest: (controller, request) async {
               print('📱 Permissões solicitadas: ${request.resources}');
