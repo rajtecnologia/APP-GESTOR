@@ -12,17 +12,6 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -31,7 +20,6 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
 
 # Symbolication related
 app.*.symbols
@@ -39,10 +27,63 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
 # FVM Version Cache
 .fvm/
+
+# Android Studio / IntelliJ IDEA
+*.iml
+.idea/
+local.properties
+/captures
+.externalNativeBuild
+
+# Android Build
+/build
+*.hprof
+
+# macOS
+.DS_Store
+
+# Java
+.mtj.tmp/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+pom.xml.bak
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+bin/
+.gradle
+.gradletasknamecache
+gradle-app.setting
+/gradle/wrapper/gradle-wrapper.jar
+gradlew.bat
+gradlew
+
+# Visual Studio Code
+.vscode/
+.code-workspace
+
+# Android Studio will place build artifacts here
+app/debug
+app/profile
+app/release
+
+# Logs
+*.log
