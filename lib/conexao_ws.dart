@@ -37,7 +37,7 @@ class EnvioRastreioWS {
         'cliente_conexao':clienteConexao      
         
       });
-    } on DioError catch (e) {
+    } on DioException catch (e) {
       print("Erro na requisição: $e");
       return null;
     }
