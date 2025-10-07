@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:com.raj.raj_pdv_gestor/conexao_ws.dart';
 import 'package:com.raj.raj_pdv_gestor/globais.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart' as dio;
 import 'package:dio/dio.dart';
 
@@ -518,6 +519,26 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+// NOVA FUNÇÃO: Verificar permissão de armazenamento (compatível com Android 13+)
+Future<bool> _hasStoragePermission() async {
+  if (Platform.isAndroid) {
+    // Android 13+ (API 33+) não precisa de permissão para Downloads
+    // Mas podemos verificar se temos acesso
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    
+    if (androidInfo.version.sdkInt >= 33) {
+      // Android 13+: Downloads é sempre acessível, não precisa de permissão
+      print('📱 Android 13+: Acesso direto a Downloads');
+      return true;
+    } else {
+      // Android 12 e inferior: verificar permissão de storage
+      final status = await Permission.storage.status;
+      print('📱 Android <13: Storage permission = $status');
+      return status.isGranted;
+    }
+  }
+  return true; // iOS sempre permite
+}
   @override
   void initState() {
     super.initState();
@@ -605,42 +626,79 @@ class _MyHomePageState extends State<MyHomePage> {
               final filename =
                   downloadStartRequest.suggestedFilename ?? 'file.pdf';
 
-              if (await Permission.manageExternalStorage.request().isGranted) {
+              print('📥 Iniciando download: $filename');
+              print('🔗 URL: $url');
+
+              try {
                 Directory? directory;
+
                 if (Platform.isAndroid) {
-                  directory = Directory('/storage/emulated/0/Download');
+                  // Android 13+ (API 33+) - Usar diretório público Downloads
+                  if (await _hasStoragePermission()) {
+                    // Usar pasta Downloads pública (não precisa de permissão especial)
+                    directory = Directory('/storage/emulated/0/Download');
+
+                    // Se não existir, criar
+                    if (!await directory.exists()) {
+                      await directory.create(recursive: true);
+                    }
+                  } else {
+                    // Fallback: usar pasta interna do app (sempre permitida)
+                    directory = await getApplicationDocumentsDirectory();
+                    print('⚠️ Usando diretório interno do app');
+                  }
                 } else if (Platform.isIOS) {
+                  // iOS: usar diretório de documentos do app
                   directory = await getApplicationDocumentsDirectory();
                 }
 
                 if (directory != null) {
                   final filePath = '${directory.path}/$filename';
+                  print('💾 Salvando em: $filePath');
+
                   await downloadFile(url, filePath);
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Download concluído: $filePath')),
-                  );
-
-                  final result = await OpenFile.open(filePath);
-                  if (result.type == ResultType.error) {
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            Text('Erro ao abrir o arquivo: ${result.message}'),
+                        content: Text('✅ Download concluído: $filename'),
+                        duration: Duration(seconds: 2),
                       ),
                     );
                   }
+
+                  // Tentar abrir o arquivo
+                  final result = await OpenFile.open(filePath);
+                  if (result.type == ResultType.error) {
+                    print('❌ Erro ao abrir: ${result.message}');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              'Arquivo baixado mas não foi possível abrir'),
+                          action: SnackBarAction(
+                            label: 'OK',
+                            onPressed: () {},
+                          ),
+                        ),
+                      );
+                    }
+                  } else {
+                    print('✅ Arquivo aberto com sucesso');
+                  }
                 } else {
+                  throw Exception('Não foi possível acessar o armazenamento');
+                }
+              } catch (e) {
+                print('❌ Erro no download: $e');
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Erro ao acessar o armazenamento.')),
+                    SnackBar(
+                      content: Text('Erro ao baixar arquivo: $e'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Permissão de armazenamento negada.')),
-                );
               }
             },
             initialSettings: InAppWebViewSettings(

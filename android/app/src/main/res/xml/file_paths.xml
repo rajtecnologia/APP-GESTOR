@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arquivo: android/app/src/main/res/xml/file_paths.xml -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Diretório de cache interno do app -->
+    <cache-path name="cache" path="." />
+    
+    <!-- Diretório interno do app -->
+    <files-path name="files" path="." />
+    
+    <!-- Pasta Downloads pública -->
+    <external-path name="downloads" path="Download/" />
+    
+    <!-- Armazenamento externo (SD Card) -->
+    <external-files-path name="external_files" path="." />
+    
+    <!-- Cache externo -->
+    <external-cache-path name="external_cache" path="." />
+</paths>

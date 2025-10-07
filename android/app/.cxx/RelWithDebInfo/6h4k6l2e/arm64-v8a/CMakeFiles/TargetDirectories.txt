@@ -1,0 +1,2 @@
+D:/GIT/APP-GESTOR/android/app/.cxx/RelWithDebInfo/6h4k6l2e/arm64-v8a/CMakeFiles/edit_cache.dir
+D:/GIT/APP-GESTOR/android/app/.cxx/RelWithDebInfo/6h4k6l2e/arm64-v8a/CMakeFiles/rebuild_cache.dir

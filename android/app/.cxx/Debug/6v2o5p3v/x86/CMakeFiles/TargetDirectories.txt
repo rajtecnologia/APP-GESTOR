@@ -1,0 +1,2 @@
+D:/GIT/APP-GESTOR/android/app/.cxx/Debug/6v2o5p3v/x86/CMakeFiles/edit_cache.dir
+D:/GIT/APP-GESTOR/android/app/.cxx/Debug/6v2o5p3v/x86/CMakeFiles/rebuild_cache.dir

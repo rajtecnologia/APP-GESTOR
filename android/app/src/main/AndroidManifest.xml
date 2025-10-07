@@ -5,9 +5,20 @@
     <uses-permission android:name="android.permission.AUDIO_CAPTURE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" /> 
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="28" /> -->
+
+    <!-- Armazenamento - Android 13+ (API 33+) -->
+    <!-- Para ler/escrever imagens e vídeos -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Armazenamento - Android 12 e inferior (API < 33) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="32" />
     <!-- <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" /> -->
 
     <!-- GEOLOCALIZACAO -->
@@ -19,6 +30,8 @@
     <application
         android:label="RAJ Gestor"
         android:name="${applicationName}"
+        android:requestLegacyExternalStorage="true"
+        android:preserveLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -48,10 +61,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
               <provider
-            android:name="com.pichillilorenzo.flutter_inappwebview_android.InAppWebViewFileProvider"
-            android:authorities="${applicationId}.flutter_inappwebview_android.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
+                    android:name="com.pichillilorenzo.flutter_inappwebview_android.InAppWebViewFileProvider"
+                    android:authorities="${applicationId}.flutter_inappwebview_android.fileprovider"
+                    android:exported="false"
+                    android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
