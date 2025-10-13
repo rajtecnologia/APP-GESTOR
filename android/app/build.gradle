@@ -80,6 +80,11 @@ android {
     lint {
         disable 'InvalidPackage'
     }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
 }
 
 flutter {
