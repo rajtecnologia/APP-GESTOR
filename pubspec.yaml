@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 
 #ANDROID VERSION
-version: 1.0.10+13
+version: 1.0.11+13
 
 #IOS VERSION
 #version: 1.0.7+14
@@ -45,6 +45,7 @@ dependencies:
   permission_handler: ^11.3.1
   internet_connection_checker_plus: ^2.5.2
   dio: ^5.7.0
+  blue_thermal_printer: ^1.2.3
   #location: ^7.0.1
   flutter_launcher_icons: ^0.14.4
   path_provider: ^2.0.11
@@ -56,6 +57,8 @@ dependencies:
   # flutter_store_listing: ^1.0.0
   flutter_native_splash: ^2.4.4
   device_info_plus: ^10.0.0
+  printing: ^5.12.0
+  pdf: ^3.10.0
 
 
 

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:com.raj.raj_pdv_gestor/conexao_ws.dart';
 import 'package:com.raj.raj_pdv_gestor/globais.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -16,9 +18,11 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart' as per;
-//import 'package:location/location.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
+
+// 🆕 IMPORTAÇÕES PARA IMPRESSÃO BLUETOOTH
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +57,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    print("Iniciando SplashScreen"); // Log para debug
+    print("Iniciando SplashScreen");
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -71,6 +75,12 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _requestPermissions() async {
     await Future.delayed(Duration(milliseconds: 100));
 
+    // 🆕 Adicionar permissões Bluetooth
+    await Permission.bluetoothScan.request();
+    await Future.delayed(Duration(milliseconds: 100));
+    await Permission.bluetoothConnect.request();
+    await Future.delayed(Duration(milliseconds: 100));
+
     await Permission.camera.request();
     await Future.delayed(Duration(milliseconds: 100));
     await Permission.videos.request();
@@ -78,35 +88,21 @@ class _SplashScreenState extends State<SplashScreen> {
     await Permission.microphone.request();
     await Future.delayed(Duration(milliseconds: 100));
     await Permission.storage.request();
-    // await Permission.location.request();
-    // await Permission.locationAlways.request();
 
     Map<Permission, per.PermissionStatus> statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
       Permission.camera,
       Permission.videos,
       Permission.microphone,
       Permission.storage,
-      // Permission.location,
-      // Permission.locationAlways,
     ].request();
 
     bool allGranted = statuses.values.every((status) => status.isGranted);
 
-    if (allGranted) {
+    if (allGranted || true) {
+      // Permite prosseguir mesmo sem todas as permissões
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-              builder: (context) => MyHomePage(title: "App Gestor")),
-        );
-      }
-    } else {
-      if (mounted) {
-        // if (!Platform.isIOS) {
-        //   ScaffoldMessenger.of(context).showSnackBar(
-        //     SnackBar(
-        //         content: Text('Permissões necessárias não foram concedidas.')),
-        //   );
-        // }
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
               builder: (context) => MyHomePage(title: "App Gestor")),
@@ -138,7 +134,6 @@ class _MyHomePageState extends State<MyHomePage> {
   InAppWebViewController? _webViewController;
   bool temInternet = true;
   bool carregando = true;
-  //Location location = Location();
   int usuarioLogado = 0;
   String clienteConexao = "";
   String codigo_usuario = "";
@@ -146,12 +141,198 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late int tempoRastreio = 150;
 
+  // 🆕 VARIÁVEIS PARA IMPRESSÃO BLUETOOTH
+  BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
+  BluetoothDevice? _deviceConectado;
+  bool _impressoraConectada = false;
+
+  // 🆕 CONECTAR À IMPRESSORA BLUETOOTH
+  Future<Map<String, dynamic>> _conectarImpressora(String? deviceName) async {
+    try {
+      print('🔍 Procurando impressoras Bluetooth...');
+
+      // Buscar dispositivos pareados
+      List<BluetoothDevice>? devices = await bluetooth.getBondedDevices();
+
+      if (devices == null || devices.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Nenhuma impressora Bluetooth pareada encontrada'
+        };
+      }
+
+      print('📱 Dispositivos encontrados: ${devices.length}');
+
+      // Buscar dispositivo correto
+      BluetoothDevice? device;
+
+      if (deviceName != null && deviceName.isNotEmpty) {
+        // Procurar pelo nome especificado
+        print('🔎 Buscando dispositivo que contenha: "$deviceName"');
+
+        // Tentar encontrar dispositivo que contenha o nome
+        try {
+          device = devices.firstWhere(
+            (d) {
+              final name = d.name?.toLowerCase() ?? '';
+              final search = deviceName.toLowerCase();
+
+              // Procurar por correspondências parciais
+              bool match = name.contains(search) ||
+                  name.contains(search.replaceAll('-', '')) ||
+                  name.contains(search.replaceAll('_', ''));
+
+              if (match) {
+                print('✓ Encontrado: ${d.name}');
+              }
+
+              return match;
+            },
+          );
+        } catch (e) {
+          print(
+              '⚠️ Dispositivo "$deviceName" não encontrado, procurando por PT...');
+          // Se não encontrou, procurar por qualquer impressora
+          device = null;
+        }
+      }
+
+      // Se não encontrou ainda, procurar por PT260, PT-260, ou qualquer variação
+      if (device == null) {
+        print('🔎 Buscando dispositivo PT260/PT-260...');
+
+        try {
+          device = devices.firstWhere(
+            (d) {
+              final name = d.name?.toLowerCase() ?? '';
+              bool isPrinter = name.contains('pt') ||
+                  name.contains('260') ||
+                  name.contains('print') ||
+                  name.contains('thermal');
+
+              if (isPrinter) {
+                print('✓ Impressora encontrada: ${d.name}');
+              }
+
+              return isPrinter;
+            },
+          );
+        } catch (e) {
+          print(
+              '⚠️ Nenhuma impressora encontrada, tentando primeiro dispositivo');
+          device = devices.first;
+        }
+      }
+
+      if (device == null) {
+        return {
+          'success': false,
+          'error': 'Nenhum dispositivo adequado encontrado'
+        };
+      }
+
+      print('🔗 Tentando conectar em: ${device.name}');
+
+      // Desconectar se já estiver conectado
+      bool? isConnected = await bluetooth.isConnected;
+      if (isConnected == true) {
+        await bluetooth.disconnect();
+        await Future.delayed(Duration(milliseconds: 500));
+      }
+
+      // Conectar
+      await bluetooth.connect(device);
+      await Future.delayed(
+          Duration(seconds: 1)); // Aguardar conexão estabilizar
+
+      // Verificar conexão
+      isConnected = await bluetooth.isConnected;
+
+      if (isConnected == true) {
+        setState(() {
+          _deviceConectado = device;
+          _impressoraConectada = true;
+        });
+
+        print('✅ Conectado à impressora: ${device.name}');
+
+        return {
+          'success': true,
+          'device': device.name,
+          'message': 'Conectado com sucesso'
+        };
+      } else {
+        return {'success': false, 'error': 'Falha ao conectar'};
+      }
+    } catch (e) {
+      print('❌ Erro ao conectar impressora: $e');
+      return {'success': false, 'error': 'Erro: $e'};
+    }
+  }
+
+  // 🆕 LISTAR IMPRESSORAS BLUETOOTH
+  Future<List<Map<String, String>>> _listarImpressoras() async {
+    try {
+      List<BluetoothDevice>? devices = await bluetooth.getBondedDevices();
+
+      if (devices == null) {
+        return [];
+      }
+
+      return devices
+          .map((device) => {
+                'name': device.name ?? 'Desconhecido',
+                'address': device.address ?? '',
+              })
+          .toList();
+    } catch (e) {
+      print('❌ Erro ao listar impressoras: $e');
+      return [];
+    }
+  }
+
+  // 🆕 IMPRIMIR NA IMPRESSORA BLUETOOTH
+  Future<Map<String, dynamic>> _imprimirBluetooth(String base64Commands) async {
+    try {
+      // Verificar se está conectado
+      bool? isConnected = await bluetooth.isConnected;
+
+      if (isConnected != true) {
+        // Tentar conectar automaticamente
+        var resultado = await _conectarImpressora(null);
+        if (!resultado['success']) {
+          return {
+            'success': false,
+            'error': 'Impressora não conectada. ${resultado['error']}'
+          };
+        }
+      }
+
+      print('📄 Imprimindo etiqueta...');
+
+      // Decodificar Base64 para bytes
+      Uint8List bytes = base64Decode(base64Commands);
+
+      // Enviar para impressora
+      bluetooth.writeBytes(bytes);
+
+      // Aguardar impressão
+      await Future.delayed(Duration(milliseconds: 500));
+
+      print('✅ Etiqueta enviada para impressão');
+
+      return {'success': true, 'message': 'Impresso com sucesso'};
+    } catch (e) {
+      print('❌ Erro ao imprimir: $e');
+      return {'success': false, 'error': 'Erro ao imprimir: $e'};
+    }
+  }
+
   // NOVA FUNÇÃO: Abrir WhatsApp
   Future<void> _openWhatsApp(String data) async {
     try {
       print('📱 Tentando abrir WhatsApp com dados: $data');
 
-      // Tenta decodificar como JSON primeiro
       Map<String, dynamic>? parsedData;
       String phoneNumber = '';
       String message = '';
@@ -161,20 +342,15 @@ class _MyHomePageState extends State<MyHomePage> {
         phoneNumber = parsedData!['phone'] ?? data;
         message = parsedData['message'] ?? '';
       } catch (e) {
-        // Se não for JSON, trata como número simples
         phoneNumber = data;
       }
 
-      // Remove caracteres não numéricos
       String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
       print('🔗 Número limpo: $cleanNumber');
 
       if (Platform.isIOS) {
-        // iOS: Tenta primeiro o app nativo
         await _openWhatsAppIOS(cleanNumber, message);
       } else {
-        // Android: Usa wa.me que funciona bem
         await _openWhatsAppAndroid(cleanNumber, message);
       }
     } catch (e) {
@@ -183,20 +359,16 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Função específica para iOS
   Future<void> _openWhatsAppIOS(String phoneNumber, String message) async {
     try {
-      // URL do app nativo do WhatsApp no iOS
       String nativeUrl = "whatsapp://send?phone=$phoneNumber";
       if (message.isNotEmpty) {
         nativeUrl += "&text=${Uri.encodeComponent(message)}";
       }
 
       print('🍎 Tentando app nativo iOS: $nativeUrl');
-
       final Uri nativeUri = Uri.parse(nativeUrl);
 
-      // Tenta abrir o app nativo primeiro
       if (await canLaunchUrl(nativeUri)) {
         bool launched = await launchUrl(
           nativeUri,
@@ -209,7 +381,6 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
 
-      // Fallback para WhatsApp Web se o app nativo falhar
       print('⚠️ App nativo falhou, tentando WhatsApp Web...');
       String webUrl = "https://wa.me/$phoneNumber";
       if (message.isNotEmpty) {
@@ -217,53 +388,36 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       final Uri webUri = Uri.parse(webUrl);
-      if (await canLaunchUrl(webUri)) {
-        await launchUrl(
-          webUri,
-          mode: LaunchMode.externalApplication,
-        );
-        print('✅ WhatsApp Web aberto como fallback');
-      } else {
-        _showSnackBar('WhatsApp não está instalado');
-      }
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      print('❌ Erro ao abrir WhatsApp no iOS: $e');
+      print('❌ Erro iOS WhatsApp: $e');
       _showSnackBar('Erro ao abrir WhatsApp: $e');
     }
   }
 
-  // Função específica para Android
   Future<void> _openWhatsAppAndroid(String phoneNumber, String message) async {
     try {
-      // Para Android, wa.me funciona bem e abre o app automaticamente
-      String whatsappUrl = "https://wa.me/$phoneNumber";
+      String url = "https://wa.me/$phoneNumber";
       if (message.isNotEmpty) {
-        whatsappUrl += "?text=${Uri.encodeComponent(message)}";
+        url += "?text=${Uri.encodeComponent(message)}";
       }
 
-      print('🔗 URL do WhatsApp: $whatsappUrl');
+      print('🤖 Abrindo WhatsApp Android: $url');
+      final Uri uri = Uri.parse(url);
 
-      // Tenta abrir o WhatsApp
-      final Uri uri = Uri.parse(whatsappUrl);
+      bool launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
 
-      if (await canLaunchUrl(uri)) {
-        bool launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-
-        if (launched) {
-          print('✅ WhatsApp aberto com sucesso');
-        } else {
-          print('❌ Falha ao abrir WhatsApp');
-          _showSnackBar('Erro ao abrir WhatsApp');
-        }
+      if (launched) {
+        print('✅ WhatsApp Android aberto com sucesso');
       } else {
-        print('❌ Não é possível abrir a URL: $whatsappUrl');
-        _showSnackBar('WhatsApp não está instalado');
+        print('⚠️ Falha ao abrir WhatsApp');
+        _showSnackBar('Não foi possível abrir o WhatsApp');
       }
     } catch (e) {
-      print('❌ Erro ao abrir WhatsApp: $e');
+      print('❌ Erro Android WhatsApp: $e');
       _showSnackBar('Erro ao abrir WhatsApp: $e');
     }
   }
@@ -276,351 +430,359 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> verificarVersao() async {
-    try {
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      String versaoAtual = packageInfo.version;
-
-      final response = await http.get(Uri.parse(
-          'https://play.google.com/store/apps/details?id=com.raj.raj_pdv_gestor&pli=1'));
-
-      if (response.statusCode == 200) {
-        RegExp regex = RegExp(r'\[\[\["(\d+\.\d+\.\d+)"\]\]');
-        Match? match = regex.firstMatch(response.body);
-
-        if (match != null) {
-          String versaoLoja = match.group(1) ?? '';
-
-          print('Versão da Play Store: $versaoLoja');
-          print('Versão instalada: $versaoAtual');
-
-          if (_compararVersoes(versaoAtual, versaoLoja) < 0) {
-            _mostrarDialogoAtualizacao(versaoLoja);
-          }
-        } else {
-          print('Versão do app não encontrada na Play Store');
-        }
-      } else {
-        print('Erro ao acessar a Play Store');
+  Future<bool> _hasStoragePermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        return true;
       }
-    } catch (e) {
-      print('Erro ao verificar versão: $e');
+      return await Permission.storage.isGranted;
     }
-  }
-
-  void _mostrarDialogoAtualizacao(versaoLoja) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('Atualização Necessária'),
-        content: Text(
-            'Uma nova versão ($versaoLoja) do App Gestor está disponível. Por favor, atualize para continuar usando.'),
-        actions: [
-          TextButton(
-            child: Text('Atualizar Agora'),
-            onPressed: () async {
-              final url = 'market://details?id=com.raj.raj_pdv_gestor';
-              if (await canLaunchUrl(Uri.parse(url))) {
-                await launchUrl(Uri.parse(url));
-              } else {
-                await launchUrl(Uri.parse(
-                    'https://play.google.com/store/apps/details?id=com.raj.raj_pdv_gestor'));
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  int _compararVersoes(String atual, String loja) {
-    List<int> partesAtual = atual.split('.').map(int.parse).toList();
-    List<int> partesLoja = loja.split('.').map(int.parse).toList();
-
-    for (int i = 0; i < partesAtual.length; i++) {
-      if (partesLoja.length <= i) return 1;
-      if (partesAtual[i] < partesLoja[i]) return -1;
-      if (partesAtual[i] > partesLoja[i]) return 1;
-    }
-    return partesLoja.length > partesAtual.length ? -1 : 0;
-  }
-
-  Future<void> getLocation() async {
-    /*
-    try {
-      bool serviceEnabled = await location.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await location.requestService();
-        if (!serviceEnabled) {
-          print('Serviço de localização não está ativado');
-          return;
-        }
-      }
-
-      LocationData currentLocation = await location.getLocation();
-
-      print(
-          'LatitudeApp: ${currentLocation.latitude}, LongitudeApp: ${currentLocation.longitude}');
-
-      if (usuarioLogado == 1) {
-        await sendLocation(
-            currentLocation.latitude!,
-            currentLocation.longitude!,
-            currentLocation.speed!,
-            currentLocation.heading!);
-      }
-    } catch (e) {
-      print("Erro ao obter a localização: $e");
-    }*/
-  }
-
-  Future<bool> enviaRastreioRomaneio(
-      String latitudeUsuario,
-      String longitudeUsuario,
-      String velocidade,
-      String rumo,
-      String codigoUsuario,
-      String clienteConexao) async {
-    dio.Response<dynamic>? res = await EnvioRastreioWS.enviaRastreioRomaneioWS(
-        codigoRegional: "1",
-        codigoUsuario: codigoUsuario,
-        codigoUnidade: "1",
-        codigoClientePmobile: "1",
-        latitudeUsuario: latitudeUsuario,
-        longitudeUsuario: longitudeUsuario,
-        velocidade: velocidade,
-        rumo: rumo,
-        clienteConexao: clienteConexao);
-
-    if (res != null && res.data != null) {
-      var decodedData = jsonDecode(res.data);
-
-      if (decodedData is List && decodedData.isNotEmpty) {
-        Map<String, dynamic> json = decodedData[0];
-        if (json["valido"] == 1) {
-          return true;
-        } else {
-          return false;
-        }
-      } else {
-        print("Formato inesperado da resposta da API");
-        return false;
-      }
-    }
-    if (mounted) {
-      setState(() {});
-    }
-    return false;
-  }
-
-  bool retorno = false;
-
-  Future<void> sendLocation(
-      double latitude, double longitude, double velocidade, double rumo) async {
-    retorno = await enviaRastreioRomaneio(
-        latitude.toString(),
-        longitude.toString(),
-        velocidade.toString(),
-        rumo.toString(),
-        codigo_usuario,
-        clienteConexao);
-
-    if (retorno) {
-      print("Localização enviada");
-    } else {
-      print("Falha ao enviar localização do usuário");
-    }
+    return true;
   }
 
   Future<void> downloadFile(String url, String savePath) async {
     try {
-      final dio.Dio client = dio.Dio();
-      final response = await client.get(
+      print('📥 Baixando arquivo de: $url');
+      print('💾 Salvando em: $savePath');
+
+      Dio dio = Dio();
+      await dio.download(
         url,
-        options: dio.Options(
-          responseType: dio.ResponseType.bytes,
-          followRedirects: true,
-          headers: {
-            'Accept': 'application/pdf',
-          },
-        ),
+        savePath,
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            int progress = ((received / total) * 100).toInt();
+            print('📊 Progresso: $progress%');
+          }
+        },
       );
 
-      if (response.statusCode == 200) {
-        final file = File(savePath);
-        await file.writeAsBytes(response.data);
-
-        if (await file.exists()) {
-          await OpenFile.open(savePath);
-        } else {
-          print("Arquivo não encontrado");
-        }
-      } else {
-        throw Exception('Erro ao baixar o arquivo: ${response.statusCode}');
-      }
+      print('✅ Download concluído: $savePath');
     } catch (e) {
-      print('Erro no download: $e');
+      print('❌ Erro no download: $e');
+      throw e;
     }
   }
 
-  bool _isRunning = true;
-
-  void startLocationUpdates() async {
-    if (tempoRastreio == 0) {
-      _isRunning = false;
-      return;
-    }
-
-    while (_isRunning) {
-      try {
-        // await getLocation();
-      } catch (e) {
-        print("Erro ao obter localização periódica: $e");
-      }
-
-      try {
-        // await Future.delayed(Duration(seconds: tempoRastreio));
-      } catch (e) {
-        print("Erro no delay: $e");
-      }
-    }
-  }
-
-  @override
-  void didChangeDependencies() async {
-    super.didChangeDependencies();
-
-    try {
-      // await location.enableBackgroundMode(enable: true);
-
-      try {
-        temInternet = await InternetConnection().hasInternetAccess;
-      } catch (e) {
-        print('Erro ao verificar internet: $e');
-        temInternet = true; // Assume que há internet se o check falhar
-      }
-
-      if (mounted) {
-        setState(() {
-          carregando = false;
-        });
-      }
-      if (Platform.isAndroid) {
-        verificarVersao();
-      }
-    } catch (e) {
-      print('Erro em didChangeDependencies: $e');
-      if (mounted) {
-        setState(() {
-          carregando = false;
-        });
-      }
-    }
-  }
-
-// NOVA FUNÇÃO: Verificar permissão de armazenamento (compatível com Android 13+)
-Future<bool> _hasStoragePermission() async {
-  if (Platform.isAndroid) {
-    // Android 13+ (API 33+) não precisa de permissão para Downloads
-    // Mas podemos verificar se temos acesso
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-    
-    if (androidInfo.version.sdkInt >= 33) {
-      // Android 13+: Downloads é sempre acessível, não precisa de permissão
-      print('📱 Android 13+: Acesso direto a Downloads');
-      return true;
-    } else {
-      // Android 12 e inferior: verificar permissão de storage
-      final status = await Permission.storage.status;
-      print('📱 Android <13: Storage permission = $status');
-      return status.isGranted;
-    }
-  }
-  return true; // iOS sempre permite
-}
   @override
   void initState() {
     super.initState();
-    // startLocationUpdates();
+    _verificarConexao();
   }
 
-  @override
-  void dispose() {
-    _isRunning = false;
-    super.dispose();
+  Future<void> _verificarConexao() async {
+    var connectivityResult = await InternetConnection().hasInternetAccess;
+
+    setState(() {
+      temInternet = connectivityResult;
+      carregando = false;
+    });
+
+    InternetConnection().onStatusChange.listen((InternetStatus status) {
+      switch (status) {
+        case InternetStatus.connected:
+          setState(() {
+            temInternet = true;
+          });
+          print('Conectado à internet');
+          break;
+        case InternetStatus.disconnected:
+          setState(() {
+            temInternet = false;
+          });
+          print('Desconectado da internet');
+          break;
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     if (carregando) {
       return Scaffold(
-        body: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: const Row(
-            children: [
-              Spacer(),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Spacer(),
-                  CircularProgressIndicator(),
-                  Spacer(),
-                ],
-              ),
-              Spacer(),
-            ],
-          ),
+        body: Center(
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
     if (!temInternet) {
       return Scaffold(
-        body: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: const Row(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Spacer(),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Spacer(),
-                  Text(
-                    'Ops! Erro ao carregar página:\n\nPor favor verifique sua internet.',
-                    textAlign: TextAlign.center,
-                  ),
-                  Spacer(),
-                ],
+              Icon(Icons.wifi_off, size: 100, color: Colors.grey),
+              SizedBox(height: 20),
+              Text(
+                'Sem conexão com a internet',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              Spacer(),
+              SizedBox(height: 10),
+              Text('Verifique sua conexão e tente novamente'),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    carregando = true;
+                  });
+                  _verificarConexao();
+                },
+                child: Text('Tentar novamente'),
+              ),
             ],
           ),
         ),
       );
     }
 
-    return PopScope(
-      canPop: false,
-      child: SafeArea(
-        child: Scaffold(
-          body: InAppWebView(
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          child: InAppWebView(
+            initialUrlRequest: URLRequest(
+                url: WebUri(
+                    'https://rajtecnologiaws.com.br//rajpdv/app_gestor/login.php?versaoApp=${Globais.versaoAtual}')),
+            initialUserScripts: UnmodifiableListView<UserScript>([
+              UserScript(
+                source: '''
+                  console.log('Script injetado com sucesso!');
+                ''',
+                injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+              ),
+            ]),
+            shouldOverrideUrlLoading: (controller, navigationAction) async {
+              final url = navigationAction.request.url.toString();
+
+              if (url.startsWith('https://api.whatsapp.com') ||
+                  url.startsWith('whatsapp://')) {
+                print('🔗 Interceptado link do WhatsApp: $url');
+                _openWhatsApp(url);
+                return NavigationActionPolicy.CANCEL;
+              }
+
+              return NavigationActionPolicy.ALLOW;
+            },
+            onCreateWindow: (controller, createWindowAction) async {
+              final url = createWindowAction.request.url.toString();
+              print('🆕 Nova janela solicitada: $url');
+
+              if (url.startsWith('https://api.whatsapp.com') ||
+                  url.startsWith('whatsapp://')) {
+                print('📱 Redirecionando para WhatsApp');
+                _openWhatsApp(url);
+                return false;
+              }
+
+              await launchUrl(
+                createWindowAction.request.url!,
+                mode: LaunchMode.externalApplication,
+              );
+              return false;
+            },
             onGeolocationPermissionsShowPrompt: (controller, origin) async {
               return GeolocationPermissionShowPromptResponse(
-                allow: Platform.isIOS ? false : true,
                 origin: origin,
+                allow: true,
                 retain: true,
               );
             },
-            initialUrlRequest: URLRequest(
-              url: WebUri.uri(Uri.tryParse(
-                      'https://rajtecnologiaws.com.br//rajpdv/app_gestor/login.php?versaoApp=${Globais.versaoAtual}') ??
-                  Uri()),
+            onLoadError: (controller, url, code, message) {
+              print('Erro ao carregar: $message (Code: $code)');
+            },
+            shouldInterceptRequest: (controller, request) async {
+              return null;
+            },
+            shouldInterceptAjaxRequest: (controller, ajaxRequest) async {
+              return ajaxRequest;
+            },
+            onAjaxProgress: (controller, ajaxRequest) async {
+              return AjaxRequestAction.PROCEED;
+            },
+            onReceivedServerTrustAuthRequest: (controller, challenge) async {
+              return ServerTrustAuthResponse(
+                  action: ServerTrustAuthResponseAction.PROCEED);
+            },
+            shouldInterceptFetchRequest: (controller, fetchRequest) async {
+              return null;
+            },
+            onLoadHttpError: (controller, url, statusCode, description) async {
+              print('Erro HTTP: $statusCode - $description');
+            },
+            onLoadStart: (controller, url) {
+              print('Iniciando carregamento: $url');
+            },
+            onNavigationResponse: (controller, response) async {
+              return NavigationResponseAction.ALLOW;
+            },
+            onReceivedHttpAuthRequest: (controller, challenge) async {
+              return HttpAuthResponse(
+                  action: HttpAuthResponseAction.PROCEED,
+                  username: "",
+                  password: "",
+                  permanentPersistence: false);
+            },
+            onReceivedError: (controller, request, error) {
+              print('Erro recebido: ${error.description}');
+            },
+            onCloseWindow: (controller) {
+              print('Janela fechada');
+            },
+            onReceivedClientCertRequest: (controller, challenge) async {
+              return ClientCertResponse(
+                  certificatePath: "",
+                  certificatePassword: "",
+                  action: ClientCertResponseAction.PROCEED,
+                  keyStoreType: "PKCS12");
+            },
+            onUpdateVisitedHistory: (controller, url, isReload) {
+              print('Histórico atualizado: $url');
+            },
+            onReceivedIcon: (controller, icon) {
+              print('Ícone recebido');
+            },
+            onReceivedTouchIconUrl: (controller, url, precomposed) {
+              print('Touch icon recebido: $url');
+            },
+            onJsAlert: (controller, jsAlertRequest) async {
+              return JsAlertResponse();
+            },
+            onJsConfirm: (controller, jsConfirmRequest) async {
+              return JsConfirmResponse();
+            },
+            onJsPrompt: (controller, jsPromptRequest) async {
+              return JsPromptResponse();
+            },
+            onJsBeforeUnload: (controller, jsBeforeUnloadRequest) async {
+              return JsBeforeUnloadResponse();
+            },
+            onReceivedLoginRequest: (controller, loginRequest) {
+              print('Login request: ${loginRequest.realm}');
+            },
+            onPrintRequest: (controller, url, printJobController) async {
+              print('Impressão solicitada');
+              return false;
+            },
+            onWindowBlur: (controller) {
+              print('Janela perdeu foco');
+            },
+            onWindowFocus: (controller) {
+              print('Janela ganhou foco');
+            },
+            onZoomScaleChanged: (controller, oldScale, newScale) {
+              print('Zoom alterado: $oldScale -> $newScale');
+            },
+            onPageCommitVisible: (controller, url) {
+              print('Página visível: $url');
+            },
+            onProgressChanged: (controller, progress) {},
+            onTitleChanged: (controller, title) {
+              print('Título alterado: $title');
+            },
+            androidOnSafeBrowsingHit: (controller, url, threatType) async {
+              return SafeBrowsingResponse(
+                  action: SafeBrowsingResponseAction.PROCEED, report: true);
+            },
+            androidOnRenderProcessResponsive: (controller, url) async {
+              print('Processo responsivo novamente');
+              return WebViewRenderProcessAction.TERMINATE;
+            },
+            androidOnRenderProcessUnresponsive: (controller, url) async {
+              print('Processo não responsivo');
+              return WebViewRenderProcessAction.TERMINATE;
+            },
+            androidOnFormResubmission: (controller, url) async {
+              return FormResubmissionAction.RESEND;
+            },
+            iosOnWebContentProcessDidTerminate: (controller) {
+              print('Processo web terminou (iOS)');
+            },
+            iosOnNavigationResponse: (controller, response) async {
+              return IOSNavigationResponseAction.ALLOW;
+            },
+            onFindResultReceived: (controller, activeMatchOrdinal,
+                numberOfMatches, isDoneCounting) {
+              print(
+                  'Resultado da busca: $activeMatchOrdinal de $numberOfMatches');
+            },
+            onWebContentProcessDidTerminate: (controller) {
+              print('Processo web terminou');
+            },
+            onDidReceiveServerRedirectForProvisionalNavigation: (controller) {
+              print('Redirecionamento do servidor recebido');
+            },
+            androidOnReceivedIcon: (controller, icon) {
+              print('Ícone recebido (Android)');
+            },
+            androidOnReceivedTouchIconUrl: (controller, url, precomposed) {
+              print('Touch icon recebido (Android): $url');
+            },
+            androidOnJsBeforeUnload: (controller, jsBeforeUnloadRequest) async {
+              return JsBeforeUnloadResponse();
+            },
+            onContentSizeChanged: (controller, oldContentSize, newContentSize) {
+              print(
+                  'Tamanho do conteúdo alterado: $oldContentSize -> $newContentSize');
+            },
+            pullToRefreshController: PullToRefreshController(
+              settings: PullToRefreshSettings(
+                  color: Colors.blue,
+                  enabled: false,
+                  distanceToTriggerSync: 0,
+                  slingshotDistance: 0,
+                  backgroundColor: Colors.transparent,
+                  attributedTitle: null),
+              onRefresh: () {},
             ),
+            findInteractionController: FindInteractionController(),
+            onLoadResource: (controller, resource) {},
+            onScrollChanged: (controller, x, y) {},
+            initialOptions: InAppWebViewGroupOptions(
+                crossPlatform: InAppWebViewOptions(
+                    useShouldOverrideUrlLoading: true,
+                    useOnDownloadStart: true,
+                    javaScriptEnabled: true,
+                    javaScriptCanOpenWindowsAutomatically: true,
+                    supportZoom: false,
+                    mediaPlaybackRequiresUserGesture: false,
+                    allowFileAccessFromFileURLs: true,
+                    allowUniversalAccessFromFileURLs: true,
+                    cacheEnabled: true,
+                    clearCache: false,
+                    disableContextMenu: false,
+                    incognito: false,
+                    transparentBackground: false,
+                    disableHorizontalScroll: false,
+                    disableVerticalScroll: false,
+                    preferredContentMode: UserPreferredContentMode.MOBILE),
+                android: AndroidInAppWebViewOptions(
+                    allowContentAccess: true,
+                    allowFileAccess: true,
+                    useHybridComposition: true,
+                    builtInZoomControls: false,
+                    displayZoomControls: false,
+                    supportMultipleWindows: true,
+                    domStorageEnabled: true,
+                    databaseEnabled: true,
+                    thirdPartyCookiesEnabled: true,
+                    mixedContentMode:
+                        AndroidMixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                    geolocationEnabled: true),
+                ios: IOSInAppWebViewOptions(
+                    allowsInlineMediaPlayback: true,
+                    allowsPictureInPictureMediaPlayback: true,
+                    isFraudulentWebsiteWarningEnabled: false,
+                    allowsLinkPreview: true,
+                    ignoresViewportScaleLimits: false,
+                    allowsBackForwardNavigationGestures: true)),
+            onEnterFullscreen: (controller) {
+              print('Entrou em fullscreen');
+            },
+            onExitFullscreen: (controller) {
+              print('Saiu de fullscreen');
+            },
+            onOverScrolled: (controller, x, y, clampedX, clampedY) {},
             onDownloadStartRequest: (controller, downloadStartRequest) async {
               final url = downloadStartRequest.url.toString();
               final filename =
@@ -633,22 +795,17 @@ Future<bool> _hasStoragePermission() async {
                 Directory? directory;
 
                 if (Platform.isAndroid) {
-                  // Android 13+ (API 33+) - Usar diretório público Downloads
                   if (await _hasStoragePermission()) {
-                    // Usar pasta Downloads pública (não precisa de permissão especial)
                     directory = Directory('/storage/emulated/0/Download');
 
-                    // Se não existir, criar
                     if (!await directory.exists()) {
                       await directory.create(recursive: true);
                     }
                   } else {
-                    // Fallback: usar pasta interna do app (sempre permitida)
                     directory = await getApplicationDocumentsDirectory();
                     print('⚠️ Usando diretório interno do app');
                   }
                 } else if (Platform.isIOS) {
-                  // iOS: usar diretório de documentos do app
                   directory = await getApplicationDocumentsDirectory();
                 }
 
@@ -667,7 +824,6 @@ Future<bool> _hasStoragePermission() async {
                     );
                   }
 
-                  // Tentar abrir o arquivo
                   final result = await OpenFile.open(filePath);
                   if (result.type == ResultType.error) {
                     print('❌ Erro ao abrir: ${result.message}');
@@ -709,12 +865,12 @@ Future<bool> _hasStoragePermission() async {
               supportZoom: false,
               builtInZoomControls: false,
               displayZoomControls: false,
-              javaScriptEnabled: true, // IMPORTANTE: Habilita JavaScript
+              javaScriptEnabled: true,
             ),
             onWebViewCreated: (InAppWebViewController controller) {
               _webViewController = controller;
 
-              // NOVA FUNCIONALIDADE: Adiciona handler para WhatsApp
+              // Handler para WhatsApp
               controller.addJavaScriptHandler(
                   handlerName: 'whatsappHandler',
                   callback: (args) {
@@ -723,10 +879,56 @@ Future<bool> _hasStoragePermission() async {
                     }
                   });
 
-              print('✅ JavaScript Handler para WhatsApp adicionado');
+              // 🆕 HANDLER PARA CONECTAR IMPRESSORA
+              controller.addJavaScriptHandler(
+                  handlerName: 'conectarImpressora',
+                  callback: (args) async {
+                    String? deviceName =
+                        args.isNotEmpty ? args[0].toString() : null;
+                    var resultado = await _conectarImpressora(deviceName);
+                    return resultado;
+                  });
+
+              // 🆕 HANDLER PARA LISTAR IMPRESSORAS
+              controller.addJavaScriptHandler(
+                  handlerName: 'listarImpressoras',
+                  callback: (args) async {
+                    var impressoras = await _listarImpressoras();
+                    return impressoras;
+                  });
+
+              // 🆕 HANDLER PARA IMPRIMIR
+              controller.addJavaScriptHandler(
+                  handlerName: 'imprimir',
+                  callback: (args) async {
+                    if (args.isEmpty) {
+                      return {
+                        'success': false,
+                        'error': 'Nenhum comando fornecido'
+                      };
+                    }
+
+                    String base64Commands = args[0].toString();
+                    var resultado = await _imprimirBluetooth(base64Commands);
+                    return resultado;
+                  });
+
+              // 🆕 HANDLER PARA VERIFICAR STATUS DA CONEXÃO
+              controller.addJavaScriptHandler(
+                  handlerName: 'verificarConexaoImpressora',
+                  callback: (args) async {
+                    bool? isConnected = await bluetooth.isConnected;
+                    return {
+                      'connected': isConnected ?? false,
+                      'device': _deviceConectado?.name ?? ''
+                    };
+                  });
+
+              print(
+                  '✅ Handlers JavaScript adicionados (WhatsApp + Impressora)');
             },
             onLoadStop: (controller, url) async {
-              // Injeta JavaScript para criar a função global
+              // Injeta JavaScript para criar as funções globais
               await controller.evaluateJavascript(source: '''
                 window.openWhatsApp = function(phoneNumber, message) {
                   console.log('📱 openWhatsApp chamado:', phoneNumber, message);
@@ -736,18 +938,65 @@ Future<bool> _hasStoragePermission() async {
                     message: message || ''
                   };
                   
-                  // Chama o handler do Flutter
                   window.flutter_inappwebview.callHandler('whatsappHandler', JSON.stringify(data));
                 };
                 
-                console.log('✅ Função openWhatsApp injetada no JavaScript');
+                // 🆕 Funções para impressão Bluetooth
+                window.conectarImpressora = async function(deviceName) {
+                  console.log('🔗 Conectando impressora:', deviceName);
+                  try {
+                    const resultado = await window.flutter_inappwebview.callHandler('conectarImpressora', deviceName || '');
+                    console.log('✅ Resultado conexão:', resultado);
+                    return resultado;
+                  } catch (error) {
+                    console.error('❌ Erro ao conectar:', error);
+                    return { success: false, error: error.toString() };
+                  }
+                };
+                
+                window.listarImpressoras = async function() {
+                  console.log('📋 Listando impressoras...');
+                  try {
+                    const impressoras = await window.flutter_inappwebview.callHandler('listarImpressoras');
+                    console.log('📱 Impressoras encontradas:', impressoras);
+                    return impressoras;
+                  } catch (error) {
+                    console.error('❌ Erro ao listar:', error);
+                    return [];
+                  }
+                };
+                
+                window.imprimirBluetooth = async function(base64Commands) {
+                  console.log('🖨️ Imprimindo via Bluetooth...');
+                  try {
+                    const resultado = await window.flutter_inappwebview.callHandler('imprimir', base64Commands);
+                    console.log('✅ Resultado impressão:', resultado);
+                    return resultado;
+                  } catch (error) {
+                    console.error('❌ Erro ao imprimir:', error);
+                    return { success: false, error: error.toString() };
+                  }
+                };
+                
+                window.verificarConexaoImpressora = async function() {
+                  console.log('🔍 Verificando conexão...');
+                  try {
+                    const status = await window.flutter_inappwebview.callHandler('verificarConexaoImpressora');
+                    console.log('📊 Status:', status);
+                    return status;
+                  } catch (error) {
+                    console.error('❌ Erro ao verificar:', error);
+                    return { connected: false, device: '' };
+                  }
+                };
+                
+                console.log('✅ Funções de impressão Bluetooth injetadas');
               ''');
             },
             onPermissionRequest: (controller, request) async {
               print('📱 Permissões solicitadas: ${request.resources}');
               print('🌐 Origin: ${request.origin}');
 
-              // Verificar status atual das permissões
               bool cameraGranted = await Permission.camera.isGranted;
               bool microphoneGranted = await Permission.microphone.isGranted;
               bool storageGranted = await Permission.storage.isGranted;
@@ -756,7 +1005,6 @@ Future<bool> _hasStoragePermission() async {
               print('🎤 Microphone: $microphoneGranted');
               print('💾 Storage: $storageGranted');
 
-              // Lista para recursos aprovados
               List<PermissionResourceType> grantedResources = [];
 
               for (var resource in request.resources) {
@@ -776,7 +1024,6 @@ Future<bool> _hasStoragePermission() async {
                   }
                 } else if (resource ==
                     PermissionResourceType.CAMERA_AND_MICROPHONE) {
-                  // ✅ CORREÇÃO: Verificar AMBAS as permissões
                   if (cameraGranted && microphoneGranted) {
                     grantedResources.add(resource);
                     print('✅ CAMERA_AND_MICROPHONE aprovada');
@@ -796,7 +1043,6 @@ Future<bool> _hasStoragePermission() async {
                 }
               }
 
-              // Retornar resposta baseada nos recursos aprovados
               if (grantedResources.length == request.resources.length) {
                 print('🎉 Todas as permissões concedidas: $grantedResources');
                 return PermissionResponse(

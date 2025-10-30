@@ -76,6 +76,10 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>UIStatusBarHidden</key>
+		<key>NSBluetoothAlwaysUsageDescription</key>
+		<string>O app precisa acessar Bluetooth para imprimir etiquetas</string>
+		<key>NSBluetoothPeripheralUsageDescription</key>
+		<string>O app precisa acessar Bluetooth para conectar à impressora</string>
 		<false/>
 	</dict>
 </plist>
